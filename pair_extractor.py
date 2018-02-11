@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-SAMPLE_ANNOTATION = './conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
+SAMPLE_ANNOTATION = '../conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
 
 """Note that _conll files have the follwowing format:
 Column	Type	Description
@@ -26,10 +26,9 @@ def extract_entities(filename):
     Input:
         filename: path to _conll file
     Output:
-        list of info needed to get entity pairs (TODO: what exactly?)
+        list of (string, coref_number) tuples (TODO: add more/different features)
     TODO: add sentence number in addition to word number,
         since we'll look at sentence/word number when deciding which pairs to look at.
-    TODO: it's just getting the coreferential yes/no info for now, add features later
     """
     with open(filename) as source:
 
@@ -72,7 +71,7 @@ def extract_entities(filename):
 
                         #If the word itself is the entire entity
                         if item.startswith('(') and item.endswith(')'):
-                            entities.append(word) #TODO: append more than just the string
+                            entities.append((word,coref_num)) #TODO: append more than just the string
 
                         #If we're beginning a new entity
                         #Note that there may still be other currently-incomplete entities
@@ -85,7 +84,7 @@ def extract_entities(filename):
                         #Note that other entities may still be open
                         elif item.endswith(')'):
                             entity_strings[coref_num] += "_{}".format(word)
-                            entities.append(entity_strings[coref_num]) #TODO: append more than just the string
+                            entities.append((entity_strings[coref_num], coref_num)) #TODO: append more than just the string
 
                             #Clear the string
                             entity_strings[coref_num] = ""
@@ -99,6 +98,10 @@ def extract_entities(filename):
                             entity_strings[coref_num] += "_{}".format(word)
         return entities
 
+def extract_entity_pairs(filename):
+    entities = extract_entities(filename)
+    #TODO: add more here
+
 if __name__ == "__main__":
     entity_strings = extract_entities(SAMPLE_ANNOTATION)
-    print(entity_strings)
+    print(sorted(entity_strings, key=lambda X:X[1]))
