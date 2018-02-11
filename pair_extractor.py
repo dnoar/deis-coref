@@ -71,18 +71,64 @@ def extract_entities(filename):
 
                         #If the word itself is the entire entity
                         if item.startswith('(') and item.endswith(')'):
+                            """
+                            entity = dict()
+                            entity['sent_num'] = sent_num
+                            entity['doc_id'] = doc_id
+                            entity['part_num'] = part_num
+                            entity['word_span'] = (word_num, word_num)
+                            entity['string'] = word
+                            entity['pos_tags'] = [pos]
+                            entity['parse_bits'] = parse_bit
+                            entity['pred_lemmata'] = [pred_lemma]
+                            entity['pred_frame_ids'] = [pred_frame_id]
+                            entity['senses'] =[sense]
+                            entity['speaker'] = speaker
+                            entity['ne'] = ne
+                            entity['args'] = [args]
+                            entity['coref_num'] = coref_num
+                            entities.append(entity)
+                            """
                             entities.append((word,coref_num)) #TODO: append more than just the string
 
                         #If we're beginning a new entity
                         #Note that there may still be other currently-incomplete entities
                         #Eg We can encounter an open paren without having closed the previous paren
                         elif item.startswith('('):
+                            """
+                            entity = dict()
+                            entity['sent_num'] = sent_num
+                            entity['doc_id'] = doc_id
+                            entity['part_num'] = part_num
+                            entity['word_span'] = (word_num, word_num)
+                            entity['string'] = word
+                            entity['pos_tags'] = [pos]
+                            entity['parse_bits'] = parse_bit
+                            entity['pred_lemmata'] = [pred_lemma]
+                            entity['pred_frame_ids'] = [pred_frame_id]
+                            entity['senses'] = [sense]
+                            entity['speaker'] = speaker
+                            entity['ne'] = ne
+                            entity['args'] = [args]
+                            entity['coref_num'] = coref_num
+                            entities[coref_num] = entity
+                            """
                             entity_status[coref_num] = True
                             entity_strings[coref_num] = word
 
                         #If we're ending an entity
                         #Note that other entities may still be open
                         elif item.endswith(')'):
+                            """
+                            entities[coref_num]['word_span'] = (entities[coref_num]['word_span'][0], word_num)
+                            entities[coref_num]['string'] += "_{}".format(word)
+                            entities[coref_num]['pos_tags'].append(pos)
+                            entities[coref_num]['parse_bits'] += parse_bit
+                            entities[coref_num]['pred_lemmata'].append(pred_lemma)
+                            entities[coref_num]['pred_frame_ids'].append(pred_frame_id)
+                            entities[coref_num]['senses'].append(sense)
+                            entities[coref_num]['args'].append(args)
+                            """
                             entity_strings[coref_num] += "_{}".format(word)
                             entities.append((entity_strings[coref_num], coref_num)) #TODO: append more than just the string
 
@@ -95,6 +141,16 @@ def extract_entities(filename):
                     #Add the current word to the string for all open entities
                     for coref_num in entity_status.keys():
                         if entity_status[coref_num] == True:
+                            """
+                            entities[coref_num]['word_span'] = (entities[coref_num]['word_span'][0], word_num)
+                            entities[coref_num]['string'] += "_{}".format(word)
+                            entities[coref_num]['pos_tags'].append(pos)
+                            entities[coref_num]['parse_bits'] += parse_bit
+                            entities[coref_num]['pred_lemmata'].append(pred_lemma)
+                            entities[coref_num]['pred_frame_ids'].append(pred_frame_id)
+                            entities[coref_num]['senses'].append(sense)
+                            entities[coref_num]['args'].append(args)
+                            """
                             entity_strings[coref_num] += "_{}".format(word)
         return entities
 
