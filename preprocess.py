@@ -31,10 +31,8 @@ FEATURE_NAMES = ("doc_id", "part_num","sent_num",
             "sense","speaker","ne","corefs"
             )
 
-
 def featurize_file(filename):
     with open(filename) as source:
-
         """entities is currently a list of strings separated by _
         TODO: add more features than just the string,
         e.g. the pos tags for each word, tree positions, etc.
