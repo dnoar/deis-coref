@@ -4,7 +4,8 @@ from __future__ import print_function
 import os
 import csv
 import random
-
+from nltk.tree import Tree
+from string import punctuation
 SAMPLE_ANNOTATION = '../conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
 
 """Note that _conll files have the follwowing format:
@@ -99,166 +100,41 @@ def build_coref_chains(featurized_files):
         coref_dicts.append(coref_dict)
     return coref_dicts
 
-def extract_entities(featfile):
-    sents_and_parses = dict()
+def get_trees(featfile):
+    trees = dict()
     with open(featfile) as source:
         reader = csv.DictReader(source)
         for row in reader:
             key = (row['doc_id'],row['part_num'],row['sent_num'])
+            word = row['word']
+            if word in punctuation:
+                word = '(PUNC {})'.format(word)
             try:
-                sents_and_parses[key]['sent'] += ' {}'.format(row['word'])
-                sents_and_parses[key]['parse'] += '{}'.format(row['parse_bit'])
+                trees[key] += row['parse_bit'].replace('*',' ' + word)
             except KeyError:
-                sents_and_parses[key] = dict()
-                sents_and_parses[key]['sent'] = ' {}'.format(row['word'])
-                sents_and_parses[key]['parse'] = '{}'.format(row['parse_bit'])
-    return sents_and_parses
+                trees[key] = row['parse_bit'].replace('*',' ' + word)
+    return trees
 
-'''
-def extract_entities(filename):
-    """Extract entities to get CONLL format to match Latte slide format
-    Input:
-        filename: path to _conll file
-    Output:
-        list of (string, coref_number) tuples (TODO: add more/different features)
-    TODO: use parse bit instead of coref number
-    TODO: add sentence number in addition to word number,
-        since we'll look at sentence/word number when deciding which pairs to look at.
-    """
-    with open(filename) as source:
-
-        """entities is currently a list of strings separated by _
-        TODO: add more features than just the string,
-        e.g. the pos tags for each word, tree positions, etc.
-        """
-        entities = list()
-        coref_dict = dict()
-        #The sentence we're on in the file
-        sent_count = 0
-
-        #Keys: coref number Values: current string for the entity, separated by _
-        entity_strings = dict() #(number, string) dict
-
-        #Keys: coref number Values: whether we're adding words we encounter to the string for that entity
-        entity_status = dict() #(num, collecting?) dict
-
-        for line in source:
-            attribs = line.split()  #See comments at beginning of file for conll column format
-            #print(attribs) #for debugging
-            if len(attribs) == 0: #If it's a blank line, we're starting a new sentence
-                sent_count += 1
-                #print("On sent {}".format(sent_count)) #for debugging
-            elif not attribs[0].startswith('#'): #if it's not a comment
-                sent_num = sent_count
-                doc_id, part_num, word_num, word, pos = attribs[:5]
-                parse_bit, pred_lemma, pred_frame_id, sense, speaker, ne = attribs[5:11]
-                args = attribs[11:-1] #a list
-                corefs = attribs[-1] #list of entity numbers,parens,and pipes e.g. (28), (42, 64), (28|(42
-                #print(corefs)
-
-                #If we're starting or ending one or more entities
-                if corefs != '-':
-                    #List of numbers with possible parens
-                    items = corefs.split('|')
-                    for item in items:
-                        #Get just the coref number
-                        coref_num = int(''.join([s for s in item if s.isdigit()])) #the coreference number
-
-                        #If the word itself is the entire entity
-                        if item.startswith('(') and item.endswith(')'):
-
-                            entity = dict()
-                            entity['sent_num'] = sent_num
-                            entity['doc_id'] = doc_id
-                            entity['part_num'] = part_num
-                            entity['word_span'] = (word_num, word_num)
-                            entity['string'] = word
-                            entity['pos_tags'] = [pos]
-                            entity['parse_bits'] = parse_bit
-                            entity['pred_lemmata'] = [pred_lemma]
-                            entity['pred_frame_ids'] = [pred_frame_id]
-                            entity['senses'] =[sense]
-                            entity['speaker'] = speaker
-                            entity['ne'] = ne
-                            entity['args'] = [args]
-                            entity['coref_num'] = coref_num
-                            entities.append(entity)
-
-                            #entities.append((word,coref_num)) #TODO: append more than just the string
-
-                        #If we're beginning a new entity
-                        #Note that there may still be other currently-incomplete entities
-                        #Eg We can encounter an open paren without having closed the previous paren
-                        elif item.startswith('('):
-
-                            entity = dict()
-                            entity['sent_num'] = sent_num
-                            entity['doc_id'] = doc_id
-                            entity['part_num'] = part_num
-                            entity['word_span'] = (word_num, word_num)
-                            entity['string'] = word
-                            entity['pos_tags'] = [pos]
-                            entity['parse_bits'] = parse_bit
-                            entity['pred_lemmata'] = [pred_lemma]
-                            entity['pred_frame_ids'] = [pred_frame_id]
-                            entity['senses'] = [sense]
-                            entity['speaker'] = speaker
-                            entity['ne'] = ne
-                            entity['args'] = [args]
-                            entity['coref_num'] = coref_num
-                            entities[coref_num] = entity
-
-                            entity_status[coref_num] = True
-                            #entity_strings[coref_num] = word
-
-                        #If we're ending an entity
-                        #Note that other entities may still be open
-                        elif item.endswith(')'):
-
-                            entities[coref_num]['word_span'] = (entities[coref_num]['word_span'][0], word_num)
-                            entities[coref_num]['string'] += "_{}".format(word)
-                            entities[coref_num]['pos_tags'].append(pos)
-                            entities[coref_num]['parse_bits'] += parse_bit
-                            entities[coref_num]['pred_lemmata'].append(pred_lemma)
-                            entities[coref_num]['pred_frame_ids'].append(pred_frame_id)
-                            entities[coref_num]['senses'].append(sense)
-                            entities[coref_num]['args'].append(args)
-
-                            """
-                            entity_strings[coref_num] += "_{}".format(word)
-                            entities.append((entity_strings[coref_num], coref_num)) #TODO: append more than just the string
-
-                            #Clear the string
-                            entity_strings[coref_num] = ""
-                            """
-                            #Stop picking up strings for this entity
-                            entity_status[coref_num] = False
-                else: #coref == '-'
-                    #Add the current word to the string for all open entities
-                    for coref_num in entity_status.keys():
-                        if entity_status[coref_num] == True:
-
-                            entities[coref_num]['word_span'] = (entities[coref_num]['word_span'][0], word_num)
-                            entities[coref_num]['string'] += "_{}".format(word)
-                            entities[coref_num]['pos_tags'].append(pos)
-                            entities[coref_num]['parse_bits'] += parse_bit
-                            entities[coref_num]['pred_lemmata'].append(pred_lemma)
-                            entities[coref_num]['pred_frame_ids'].append(pred_frame_id)
-                            entities[coref_num]['senses'].append(sense)
-                            entities[coref_num]['args'].append(args)
-
-                            #entity_strings[coref_num] += "_{}".format(word)
-        return entities
-'''
+def get_nps(featfile):
+    np_dict = dict()
+    trees = get_trees(featfile)
+    for key in trees.keys():
+        tree = Tree.fromstring(trees[key])
+        nps = list(tree.subtrees(filter=lambda x:x.label() == "NP"))
+        for np in nps:
+            np_string = '_'.join(np.leaves())
+            try:
+                np_dict[key].append(np_string)
+            except KeyError:
+                np_dict[key] = [np_string]
+    return np_dict
 
 if __name__ == "__main__":
 
-    print("Extracting sents and parses")
-    sents_and_parses = extract_entities('../train.feat')
-    sample = random.choice(list(sents_and_parses.values()))
+    print("Getting NPs")
+    nps = get_nps('../train.feat')
+    sample = nps[('nw/wsj/02/wsj_0290', '0', '47')]
     print(sample)
-    #entity_strings = extract_entities(SAMPLE_ANNOTATION)
-    #print(sorted(entity_strings, key=lambda X:X[1]))
     """
     print("Featurizing...")
     featurized_files = featurize_dir('../conll-2012/test/')
