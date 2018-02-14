@@ -1,6 +1,8 @@
 #Extract entity pairs
 
 from __future__ import print_function
+import os
+import csv
 
 SAMPLE_ANNOTATION = '../conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
 
@@ -21,12 +23,92 @@ Column	Type	Description
 N	Coreference	Coreference chain information encoded in a parenthesis structure.
 """
 
+FEATURE_NAMES = ("doc_id", "part_num","sent_num",
+            "word_num", "word", "pos",
+            "parse_bit", "pred_lemma", "pred_frame_id",
+            "sense","speaker","ne","corefs"
+            )
+
+
+def featurize_file(filename):
+    with open(filename) as source:
+
+        """entities is currently a list of strings separated by _
+        TODO: add more features than just the string,
+        e.g. the pos tags for each word, tree positions, etc.
+        """
+        featurized_words = list()
+        sent_count = 0
+
+        for line in source:
+            attribs = line.split()  #See comments at beginning of file for conll column format
+            #print(attribs) #for debugging
+            if len(attribs) == 0: #If it's a blank line, we're starting a new sentence
+                sent_count += 1
+                #print("On sent {}".format(sent_count)) #for debugging
+            elif not attribs[0].startswith('#'): #if it's not a comment
+                feature_dict = dict()
+                sent_num = sent_count
+                doc_id, part_num, word_num, word, pos = attribs[:5]
+                parse_bit, pred_lemma, pred_frame_id, sense, speaker, ne = attribs[5:11]
+                args = attribs[11:-1] #a list
+                corefs = attribs[-1] #list of entity numbers,parens,and pipes e.g. (28), (42, 64), (28|(42
+                features = (doc_id, part_num, sent_num,word_num,word,pos,parse_bit,pred_lemma,pred_frame_id,sense,speaker,ne,corefs)
+                featurized_sent = {k:v for k,v in zip(FEATURE_NAMES,features)}
+                featurized_words.append(featurized_sent)
+        return featurized_words
+
+
+def featurize_dir(dirname):
+    featurized_files = list()
+    for root, dirnames, filenames in os.walk(dirname):
+        for filename in filenames:
+            if filename.endswith('gold_conll'):
+                featurized_files.append(featurize_file(os.path.join(root,filename)))
+    return featurized_files
+
+def write_csv(featurized_files):
+    with open('coref.feat','w',newline='') as dest:
+        writer = csv.DictWriter(dest, fieldnames=FEATURE_NAMES)
+        writer.writeheader()
+        for featurized_file in featurized_files:
+            for featurized_word in featurized_file:
+                row = dict()
+                for feature_name in FEATURE_NAMES:
+                    feature = featurized_word[feature_name]
+                    if type(feature) is list:
+                        feature = ''.join(feature)
+                    row[feature_name] = feature
+                writer.writerow(row)
+
+def build_coref_chains(featurized_files):
+    coref_dicts = list()
+    for featurized_file in featurized_files:
+        coref_dict = dict()
+        for featurized_word in featurized_file:
+            corefs = featurized_word['corefs']
+            if corefs != '-' and corefs != '':
+                coref_list = corefs.split('|')
+                for coref_item in coref_list:
+                    coref_num = int(''.join([s for s in coref_item if s.isdigit()]))
+                    try:
+                        coref_dict[coref_num].append(featurized_word['word'])
+                    except KeyError:
+                        coref_dict[coref_num] = [featurized_word['word']]
+        coref_dicts.append(coref_dict)
+    return coref_dicts
+
+
+
+
+'''
 def extract_entities(filename):
     """Extract entities to get CONLL format to match Latte slide format
     Input:
         filename: path to _conll file
     Output:
         list of (string, coref_number) tuples (TODO: add more/different features)
+    TODO: use parse bit instead of coref number
     TODO: add sentence number in addition to word number,
         since we'll look at sentence/word number when deciding which pairs to look at.
     """
@@ -37,7 +119,7 @@ def extract_entities(filename):
         e.g. the pos tags for each word, tree positions, etc.
         """
         entities = list()
-
+        coref_dict = dict()
         #The sentence we're on in the file
         sent_count = 0
 
@@ -71,7 +153,7 @@ def extract_entities(filename):
 
                         #If the word itself is the entire entity
                         if item.startswith('(') and item.endswith(')'):
-                            """
+
                             entity = dict()
                             entity['sent_num'] = sent_num
                             entity['doc_id'] = doc_id
@@ -88,14 +170,14 @@ def extract_entities(filename):
                             entity['args'] = [args]
                             entity['coref_num'] = coref_num
                             entities.append(entity)
-                            """
-                            entities.append((word,coref_num)) #TODO: append more than just the string
+
+                            #entities.append((word,coref_num)) #TODO: append more than just the string
 
                         #If we're beginning a new entity
                         #Note that there may still be other currently-incomplete entities
                         #Eg We can encounter an open paren without having closed the previous paren
                         elif item.startswith('('):
-                            """
+
                             entity = dict()
                             entity['sent_num'] = sent_num
                             entity['doc_id'] = doc_id
@@ -112,14 +194,14 @@ def extract_entities(filename):
                             entity['args'] = [args]
                             entity['coref_num'] = coref_num
                             entities[coref_num] = entity
-                            """
+
                             entity_status[coref_num] = True
-                            entity_strings[coref_num] = word
+                            #entity_strings[coref_num] = word
 
                         #If we're ending an entity
                         #Note that other entities may still be open
                         elif item.endswith(')'):
-                            """
+
                             entities[coref_num]['word_span'] = (entities[coref_num]['word_span'][0], word_num)
                             entities[coref_num]['string'] += "_{}".format(word)
                             entities[coref_num]['pos_tags'].append(pos)
@@ -128,20 +210,21 @@ def extract_entities(filename):
                             entities[coref_num]['pred_frame_ids'].append(pred_frame_id)
                             entities[coref_num]['senses'].append(sense)
                             entities[coref_num]['args'].append(args)
+
                             """
                             entity_strings[coref_num] += "_{}".format(word)
                             entities.append((entity_strings[coref_num], coref_num)) #TODO: append more than just the string
 
                             #Clear the string
                             entity_strings[coref_num] = ""
-
+                            """
                             #Stop picking up strings for this entity
                             entity_status[coref_num] = False
                 else: #coref == '-'
                     #Add the current word to the string for all open entities
                     for coref_num in entity_status.keys():
                         if entity_status[coref_num] == True:
-                            """
+
                             entities[coref_num]['word_span'] = (entities[coref_num]['word_span'][0], word_num)
                             entities[coref_num]['string'] += "_{}".format(word)
                             entities[coref_num]['pos_tags'].append(pos)
@@ -150,14 +233,22 @@ def extract_entities(filename):
                             entities[coref_num]['pred_frame_ids'].append(pred_frame_id)
                             entities[coref_num]['senses'].append(sense)
                             entities[coref_num]['args'].append(args)
-                            """
-                            entity_strings[coref_num] += "_{}".format(word)
-        return entities
 
-def extract_entity_pairs(filename):
-    entities = extract_entities(filename)
-    #TODO: add more here
+                            #entity_strings[coref_num] += "_{}".format(word)
+        return entities
+'''
 
 if __name__ == "__main__":
-    entity_strings = extract_entities(SAMPLE_ANNOTATION)
-    print(sorted(entity_strings, key=lambda X:X[1]))
+    #entity_strings = extract_entities(SAMPLE_ANNOTATION)
+    #print(sorted(entity_strings, key=lambda X:X[1]))
+    print("Featurizing...")
+    featurized_files = featurize_dir('../conll-2012/test/')
+    print("Writing csv...")
+    write_csv(featurized_files)
+    """
+    print("Extracting coreference chains...")
+    coref_dicts = build_coref_chains(featurized_files)
+    print(coref_dicts[100].keys())
+    for key in coref_dicts[100].keys():
+        print(coref_dicts[key])
+    """
