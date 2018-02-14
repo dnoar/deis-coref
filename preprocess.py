@@ -6,6 +6,8 @@ import csv
 import random
 from nltk.tree import Tree
 from string import punctuation
+import pandas as pd
+
 SAMPLE_ANNOTATION = '../conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
 
 """Note that _conll files have the follwowing format:
@@ -126,11 +128,17 @@ def get_nps(featfile):
                 np_dict[key] = [np_string]
     return np_dict
 
-def build_coref_chains(featurized_files):
+def build_coref_chains(featfile):
     """Build coreference chains from featurized files
     """
-    pass
-
+    corefs = dict() #keys: (file, num). values: (sent, word_span)
+    df = pd.read_csv(featfile)
+    filenames = df.doc_id.unique()
+    for filename in filenames:
+        file_df = df[df[doc_id] == filename]
+        corefs = file_dif.corefs.unique()
+        sents = file_df.sent_num.unique()
+    #TODO: not finished yet
 
 if __name__ == "__main__":
     """
