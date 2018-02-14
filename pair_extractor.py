@@ -3,6 +3,7 @@
 from __future__ import print_function
 import os
 import csv
+import random
 
 SAMPLE_ANNOTATION = '../conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
 
@@ -98,8 +99,20 @@ def build_coref_chains(featurized_files):
         coref_dicts.append(coref_dict)
     return coref_dicts
 
-
-
+def extract_entities(featfile):
+    sents_and_parses = dict()
+    with open(featfile) as source:
+        reader = csv.DictReader(source)
+        for row in reader:
+            key = (row['doc_id'],row['part_num'],row['sent_num'])
+            try:
+                sents_and_parses[key]['sent'] += ' {}'.format(row['word'])
+                sents_and_parses[key]['parse'] += '{}'.format(row['parse_bit'])
+            except KeyError:
+                sents_and_parses[key] = dict()
+                sents_and_parses[key]['sent'] = ' {}'.format(row['word'])
+                sents_and_parses[key]['parse'] = '{}'.format(row['parse_bit'])
+    return sents_and_parses
 
 '''
 def extract_entities(filename):
@@ -239,12 +252,20 @@ def extract_entities(filename):
 '''
 
 if __name__ == "__main__":
+
+    print("Extracting sents and parses")
+    sents_and_parses = extract_entities('../train.feat')
+    sample = random.choice(list(sents_and_parses.values()))
+    print(sample)
     #entity_strings = extract_entities(SAMPLE_ANNOTATION)
     #print(sorted(entity_strings, key=lambda X:X[1]))
+    """
     print("Featurizing...")
     featurized_files = featurize_dir('../conll-2012/test/')
     print("Writing csv...")
     write_csv(featurized_files)
+    """
+
     """
     print("Extracting coreference chains...")
     coref_dicts = build_coref_chains(featurized_files)
