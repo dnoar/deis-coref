@@ -33,9 +33,12 @@ FEATURE_NAMES = ("doc_id", "part_num","sent_num",
 
 def featurize_file(filename):
     with open(filename) as source:
-        """entities is currently a list of strings separated by _
-        TODO: add more features than just the string,
-        e.g. the pos tags for each word, tree positions, etc.
+        """Convert gold_conll file to features
+        Input:
+            filename: path to gold_conll file
+        Output:
+            featurized_words: a list of dicts of features, one dict per word in the file
+        TODO: feature processing (mostly strings now)
         """
         featurized_words = list()
         sent_count = 0
@@ -60,6 +63,12 @@ def featurize_file(filename):
 
 
 def featurize_dir(dirname):
+    """Featurize all files in a dir
+    Input:
+        dirname: path to conll directory
+    Output:
+        list of list of dicts
+    """
     featurized_files = list()
     for root, dirnames, filenames in os.walk(dirname):
         for filename in filenames:
@@ -68,6 +77,8 @@ def featurize_dir(dirname):
     return featurized_files
 
 def write_csv(featurized_files):
+    """Write featurized files to csv
+    """
     with open('coref.feat','w',newline='') as dest:
         writer = csv.DictWriter(dest, fieldnames=FEATURE_NAMES)
         writer.writeheader()
@@ -81,24 +92,9 @@ def write_csv(featurized_files):
                     row[feature_name] = feature
                 writer.writerow(row)
 
-def build_coref_chains(featurized_files):
-    coref_dicts = list()
-    for featurized_file in featurized_files:
-        coref_dict = dict()
-        for featurized_word in featurized_file:
-            corefs = featurized_word['corefs']
-            if corefs != '-' and corefs != '':
-                coref_list = corefs.split('|')
-                for coref_item in coref_list:
-                    coref_num = int(''.join([s for s in coref_item if s.isdigit()]))
-                    try:
-                        coref_dict[coref_num].append(featurized_word['word'])
-                    except KeyError:
-                        coref_dict[coref_num] = [featurized_word['word']]
-        coref_dicts.append(coref_dict)
-    return coref_dicts
-
 def get_trees(featfile):
+    """Get trees from a feature file
+    """
     trees = dict()
     with open(featfile) as source:
         reader = csv.DictReader(source)
@@ -114,6 +110,9 @@ def get_trees(featfile):
     return trees
 
 def get_nps(featfile):
+    """Get trees from a feature file, then get NPs from trees
+    Use these NPs to build coreference chains
+    """
     np_dict = dict()
     trees = get_trees(featfile)
     for key in trees.keys():
@@ -127,12 +126,13 @@ def get_nps(featfile):
                 np_dict[key] = [np_string]
     return np_dict
 
-if __name__ == "__main__":
+def build_coref_chains(featurized_files):
+    """Build coreference chains from featurized files
+    """
+    pass
 
-    print("Getting NPs")
-    nps = get_nps('../train.feat')
-    sample = nps[('nw/wsj/02/wsj_0290', '0', '47')]
-    print(sample)
+
+if __name__ == "__main__":
     """
     print("Featurizing...")
     featurized_files = featurize_dir('../conll-2012/test/')
@@ -147,3 +147,8 @@ if __name__ == "__main__":
     for key in coref_dicts[100].keys():
         print(coref_dicts[key])
     """
+
+    print("Getting NPs")
+    nps = get_nps('../train.feat')
+    sample = nps[('nw/wsj/02/wsj_0290', '0', '47')]
+    print(sample)
