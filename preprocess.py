@@ -1,6 +1,7 @@
 #Extract entity pairs
 
 from __future__ import print_function
+import pickle
 import os
 import csv
 import random
@@ -34,7 +35,7 @@ FEATURE_NAMES = ("doc_id", "part_num","sent_num",
             )
 
 def featurize_file(filename):
-    with open(filename) as source:
+    with open(filename,'r',encoding='utf8') as source:
         """Convert gold_conll file to features
         Input:
             filename: path to gold_conll file
@@ -81,7 +82,7 @@ def featurize_dir(dirname):
 def write_csv(featurized_files):
     """Write featurized files to csv
     """
-    with open('coref.feat','w',newline='') as dest:
+    with open('coref.feat','w',encoding='utf8',newline='') as dest:
         writer = csv.DictWriter(dest, fieldnames=FEATURE_NAMES)
         writer.writeheader()
         for featurized_file in featurized_files:
@@ -130,33 +131,147 @@ def get_nps(featfile):
 
 def build_coref_chains(featfile):
     """Build coreference chains from featurized files
+    Input:
+        featfile - Path to file where previous featurization was saved as a CSV
+    Returns:
+        A three-tiered dictionary, indexed by (in descending order) filename, part number, and coreference chain.
+        The bottom tier holds the most pertinent information: Sentence number and word number for each mention in the chain.
+        If it is a single-word mention, the word number will be a single value.
+        If it is a multi-word mention, the word number will be multiple values spaced by underscore (e.g., 5_6_7).
     """
-    corefs = dict() #keys: (file, num). values: (sent, word_span)
+    #corefs = dict() #keys: (file, num). values: (sent, word_span)
     df = pd.read_csv(featfile)
     filenames = df.doc_id.unique()
+    fileDict = dict()
     for filename in filenames:
-        file_df = df[df[doc_id] == filename]
-        corefs = file_dif.corefs.unique()
-        sents = file_df.sent_num.unique()
-    #TODO: not finished yet
+        
+        file_df = df[df['doc_id'] == filename]
+        partnums = file_df.part_num.unique()
+        partDict = dict()
+        
+        for partnum in partnums:
+            
+            chainDict = dict()
+            part_df = file_df[file_df['part_num'] == partnum]
+            corefs = part_df[part_df['corefs'] != '-']
+            for coref in corefs.get_values():
+                sentNum = coref[2]
+                wordNum = coref[3]
+                refNum = coref[-1]
+                
+                chainDict = match_corefs(chainDict,refNum,sentNum,wordNum)
+            
+            partDict[partnum] = chainDict
+        
+        fileDict[filename] = partDict
+                
+        #corefs = file_df.corefs.unique()
+        #sents = file_df.sent_num.unique()
+    return fileDict
+    
+def match_corefs(chainDict,newCorefList,sentNum,wordNum):
+    """
+    Matches an explicit coreference mention to the appropriate chain for this file and part number.
+    Input:
+        chainDict - A dictionary for each chain, indexed by the coreference chain's number. The values of the dictionary are lists of mentions.
+        newCorefList - The direct coref value from the CONLL format (e.g. (124) or (124|(113) or 113|124)
+        sentNum - The sentence number of this mention, which is saved as part of the mention info
+        wordNum - The word number of this mention, which may be combined with previous word numbers for multi-word mentions
+    Returns:
+        chainDict, but with the appropriate mentions added to coreference chain(s)
+    """
+    
+    #One word may be relevant to numerous chains, all split by |
+    for newCoref in newCorefList.split('|'):
+        
+        #Starting a new mention
+        if newCoref.startswith('('):
+        
+            #Single-word mention
+            if newCoref.endswith(')'):
+                refNum = newCoref[1:-1]
+                chainDict = add_new_coref(chainDict,refNum,(sentNum,wordNum))
+                
+            #Multi-word mention
+            else:
+                refNum = newCoref[1:]
+                if refNum in chainDict:
+                    #here we are just saving the wordNum of the current word, which will be the beginning of the multi-word mention span
+                    chainDict[refNum].append(wordNum)
+                else:
+                    chainDict[refNum] = [wordNum]
+                    
+        #ending a multi-word mention, which will have the format "##)"
+        else:
+            refNum = newCoref[:-1]
+            
+            #get the latest still-open mention, and its number and all of the words in between
+            wordBegin = chainDict[refNum].pop()
+            span = ''
+            for i in range(wordBegin,wordNum+1):
+                span += str(i) + '_'
+            span = span.strip('_')
+            
+            
+            chainDict = add_new_coref(chainDict,refNum,(sentNum,span))
+    
+    return chainDict
+    
+def add_new_coref(chainDict,refNum,coref):
+    """Add a completed single- or multi-word mention to its coreference chain, taking into account
+    the fact that there might be still-open multi-word mentions in this same chain
+    Input:
+        chainDict - A dictionary for each chain, indexed by the coreference chain's number. The values of the dictionary are lists of mentions.
+        refNum - The index for chainDict
+        coref - The new (sentenceNumber,wordSpan) tuple to add to the coreference chain
+    Returns:
+        chainDict with coref added in between the previous completed mention (if any) and word numbers for still-open mentions (if any)
+    """
+
+    #simplest case, first time we've seen this number and it's a one-word mention
+    if refNum not in chainDict:
+        chainDict[refNum] = [coref]
+        return chainDict
+
+    chainList = chainDict[refNum]
+    openList = []
+
+    #Pop out and store all still-open mentions
+    if len(chainList) > 0:
+        while type(chainList[-1]) == int:
+            openList.append(chainList.pop())
+            if len(chainList) < 1:
+                break
+    
+    chainList.append(coref)
+    
+    #Add the popped-out still-open mentions back to the chain in their original order
+    while len(openList) > 0:
+        chainList.append(openList.pop())
+
+    return chainDict
 
 if __name__ == "__main__":
-    """
+    
     print("Featurizing...")
-    featurized_files = featurize_dir('../conll-2012/test/')
+    featurized_files = featurize_dir('../conll-2012/train/')
     print("Writing csv...")
     write_csv(featurized_files)
-    """
+    
 
-    """
+    
     print("Extracting coreference chains...")
-    coref_dicts = build_coref_chains(featurized_files)
-    print(coref_dicts[100].keys())
-    for key in coref_dicts[100].keys():
-        print(coref_dicts[key])
+    #coref_dicts = build_coref_chains(featurized_files)
+    coref_dicts = build_coref_chains('./coref.FEAT')
+    with open('corefs.pickle','wb') as f:
+        pickle.dump(coref_dicts,f,pickle.HIGHEST_PROTOCOL)
+    #print(coref_dicts[100].keys())
+    #for key in coref_dicts[100].keys():
+     #   print(coref_dicts[key])
+    
     """
-
     print("Getting NPs")
     nps = get_nps('../train.feat')
     sample = nps[('nw/wsj/02/wsj_0290', '0', '47')]
     print(sample)
+    """
