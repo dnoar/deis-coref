@@ -107,9 +107,9 @@ def get_trees(featfile):
             if word in punctuation:
                 word = '(PUNC {})'.format(word)
             try:
-                trees[key] += row['parse_bit'].replace('*',' ' + word)
+                trees[key] += row['parse_bit'].replace('*',' (' + pos + ' ' + word + ')')
             except KeyError:
-                trees[key] = row['parse_bit'].replace('*',' ' + word)
+                trees[key] = row['parse_bit'].replace('*',' (' + pos + ' ' + word + ')')
     return trees
 
 def get_nps(featfile):
