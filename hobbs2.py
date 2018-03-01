@@ -105,8 +105,20 @@ def find_past_trees(trees,tree):
 	return past
 
 
-def check_proposal(np,tree):
+def check_proposal(pronoun,p_tree,np,np_tree):
 	'add some checks in here so it actually does something'
+	
+	subtree = np_tree
+	for step in np:
+		subtree = subtree[step]
+	protree = p_tree
+	for step in pronoun:
+		protree = protree[step]
+	if subtree[0].label() == 'PRP':
+		if subtree[0][0] != protree:
+			print('BLOCKED A WRONG PRONOUN GOTTEM')
+			return False
+
 	return True
 
 def check_current_nps(x_path, p, fulltree, nps, iteration):
@@ -133,7 +145,7 @@ def check_current_nps(x_path, p, fulltree, nps, iteration):
 							except:
 								pass
 					if count > 1:
-						if check_proposal(np,tree):
+						if check_proposal(p,tree,np,tree):
 							return [np,fulltree]
 	else:
 		x_subtree = tree
@@ -144,7 +156,7 @@ def check_current_nps(x_path, p, fulltree, nps, iteration):
 				subtree = tree
 				for i in range(len(np)):
 					subtree = subtree[np[i]]	
-				if check_proposal(np,tree):
+				if check_proposal(p,tree,np,tree):
 					return [np,fulltree]
 		else:
 			for np in potential_nps:
@@ -153,32 +165,32 @@ def check_current_nps(x_path, p, fulltree, nps, iteration):
 					subtree = subtree[np[i]]
 					if subtree.label() == 'NP' or subtree.label() == 'S' and i == len(np)-1:
 						if subtree.label() == 'NP':
-							if check_proposal(np,tree):
+							if check_proposal(p,tree,np,tree):
 								return [np,fulltree]
 
 	return []
 
-def check_past_nps(past_trees):
+def check_past_nps(past_trees,pronoun,tree):
 	for tree in past_trees:
 		potential_nps = find_all_NPs[tree]
 		potential_nps.sort(key = lambda x: (len(x),x[-1]))
 
 		for np in potential_nps:
-			if check_proposal(np,tree):
+			if check_proposal(pronoun,tree,np,tree):
 				return [np,tree]
 
 	return []
 
-def hobbs(node, tree, trees, iteration):
+def hobbs(pronoun, node, tree, trees, iteration):
 	x = find_dominating_NP(node,tree)
 	proposal = []
 	proposal = check_current_nps(x,node,tree,find_all_NPs(tree),iteration)
 	if proposal == None:
 		if len(x) > 0:
 			iteration += 1
-			hobbs(x,tree,trees,iteration)
+			hobbs(pronoun,x,tree,trees,iteration)
 		else:
-			proposal = check_past_nps(find_past_trees(tree,trees))
+			proposal = check_past_nps(find_past_trees(tree,trees),pronoun,tree)
 	return proposal
 
 def link_proposals(all_proposals,proposed,tree,prp_path):
@@ -238,6 +250,9 @@ def chains_to_feat(chains):
 				if i == len(all_leaves)-1:
 					chainlabel += ')'
 				labels[leafnode] = chainlabel
+	with open('log.txt','w',encoding='utf8') as log:
+		for label in labels:
+			log.write(label + ' ' + labels[label]+'\n')
 
 	with open('output.txt','w',encoding='utf8') as out:
 		for line in feats:
@@ -276,11 +291,10 @@ if __name__ == '__main__':
 				pronouns = find_pronouns(trees[doc][part][sent])
 
 				for i in range(len(pronouns)):
-					proposals = hobbs(find_dominating_NP(pronouns[i],trees[doc][part][sent]),trees[doc][part][sent],trees,1)
+					proposals = hobbs(pronouns[i],find_dominating_NP(pronouns[i],trees[doc][part][sent]),trees[doc][part][sent],trees,1)
 
 					if proposals != []:
 						all_proposals = link_proposals(all_proposals,proposals,trees[doc][part][sent],pronouns[i])
 
 	chains = link_chains(all_proposals)
 	chains_to_feat(chains)
-
