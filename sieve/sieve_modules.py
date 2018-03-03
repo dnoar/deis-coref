@@ -1,7 +1,7 @@
 import pandas as pd
 from nltk.tree import Tree
 from nltk.corpus import stopwords
-from proinfo import SING,PLUR,PRONOUN_LIST,NUMBER_DICT,ANIMATE_DICT,ANIMATE,NONANIMATE,PERSON_DICT
+from proinfo import SING,PLUR,PRONOUN_LIST,NUMBER_DICT,ANIMATE_DICT,ANIMATE,NONANIMATE,PERSON_DICT,GENDER_DICT
 
 def get_features(df,sent_num,word_num):
     """Get the list of features for this specific row in the data
@@ -408,12 +408,12 @@ def check_property_match_pro(a,b,oneInQuotes):
 def is_in_quotes(df,sent_num,word_span):
     
     firstWord = int(word_span.split('_')[0])
+    if firstWord == 0:
+        return False
     sentSpan = ''
-    for i in range(int):
+    for i in range(firstWord):
         sentSpan += str(i) + '_'
     sentSpan = sentSpan.strip('_')
-    if sentSpan == 0:
-        return False
     sentPart = build_word_span(df,sent_num,sentSpan)
     quoteCount = sentPart.count('"')
     if quoteCount % 2 == 0:
@@ -442,12 +442,13 @@ def module7(groupings,df,trees,filename,part_num):
         matched = 0
         for mention in currSent:
             
-            
+            text = build_word_span(df,mention[0],mention[1])
             if text in PRONOUN_LIST:
                 textInQuotes = is_in_quotes(df,mention[0],mention[1])
-                check_property_match_pro(pronoun,text,inQuotes or textInQuotes)
+                if not check_property_match_pro(pronoun,text,inQuotes or textInQuotes):
+                    continue
                 
-            if not check_property_match(pronoun,mention,df,currSentTree):
+            elif not check_property_match(pronoun,mention,df,currSentTree):
                 continue
             
             matched = 1
@@ -468,9 +469,10 @@ def module7(groupings,df,trees,filename,part_num):
             text = build_word_span(df,mention[0],mention[1])
             if text in PRONOUN_LIST:
                 textInQuotes = is_in_quotes(df,mention[0],mention[1])
-                check_property_match_pro(pronoun,text,inQuotes or textInQuotes)
+                if not check_property_match_pro(pronoun,text,inQuotes or textInQuotes):
+                    continue
                 
-            if not check_property_match(pronoun,mention,df,prevSentTree):
+            elif not check_property_match(pronoun,mention,df,prevSentTree):
                 continue
                 
             rightCluster = index[mention]
