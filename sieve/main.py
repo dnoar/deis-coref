@@ -5,7 +5,7 @@ import csv
 from string import punctuation
 from preprocess import get_trees
 
-IMPLEMENTED_MODULES = [sieve_modules.module1,sieve_modules.module2,sieve_modules.module3]
+IMPLEMENTED_MODULES = [sieve_modules.module1,sieve_modules.module2,sieve_modules.module3,sieve_modules.module7]
 
 def print_groupings(f,part_df,filename,part_num,groupings):
     
