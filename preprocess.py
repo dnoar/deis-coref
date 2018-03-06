@@ -82,7 +82,7 @@ def featurize_dir(dirname):
 def write_csv(featurized_files):
     """Write featurized files to csv
     """
-    with open('coref.feat','w',encoding='utf8',newline='') as dest:
+    with open('coref_test.feat','w',encoding='utf8',newline='') as dest:
         writer = csv.DictWriter(dest, fieldnames=FEATURE_NAMES)
         writer.writeheader()
         for featurized_file in featurized_files:
@@ -255,7 +255,7 @@ def add_new_coref(chainDict,refNum,coref):
 if __name__ == "__main__":
     
     print("Featurizing...")
-    featurized_files = featurize_dir('../conll-2012/train/')
+    featurized_files = featurize_dir('../conll-2012/test/')
     print("Writing csv...")
     write_csv(featurized_files)
     
@@ -263,8 +263,8 @@ if __name__ == "__main__":
     
     print("Extracting coreference chains...")
     #coref_dicts = build_coref_chains(featurized_files)
-    coref_dicts = build_coref_chains('./coref.FEAT')
-    with open('corefs.pickle','wb') as f:
+    coref_dicts = build_coref_chains('./coref_test.FEAT')
+    with open('coref_test.pickle','wb') as f:
         pickle.dump(coref_dicts,f,pickle.HIGHEST_PROTOCOL)
     #print(coref_dicts[100].keys())
     #for key in coref_dicts[100].keys():
