@@ -5,7 +5,7 @@ Daniel Noar, Nicholas Miller, Evan MacPhaul
 ***Files:***
 
 - appositions.py: tool for finding apposition in feature file
-- classifiers.py: tools for training and evaluating classifier
+- classifiers.py: tools for training and evaluating various CRF classifiers (not implemented)
 - hobbs2.py: tool for applying Hobb's method (not implemented)
 - npfeats.py: tool for finding NP features (not implemented)
 
