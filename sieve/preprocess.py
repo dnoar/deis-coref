@@ -9,9 +9,15 @@ from nltk.tree import Tree
 from string import punctuation
 import pandas as pd
 
-SAMPLE_ANNOTATION = '../conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
+SAMPLE_ANNOTATION = '../../conll-2012/train/english/annotations/bc/cctv/00/cctv_0001.v4_auto_conll'
+CONLL_TRAIN = '../../conll-2012/train/'
+CONLL_DEV = '../../conll-2012/dev/'
+CONLL_TEST = '../../conll-2012/test/'
 
-"""Note that _conll files have the follwowing format:
+TEST_FEAT_DEST = '../coref.feat'
+COREF_PICKLE_DEST = '../coref.pickle'
+
+"""_conll files have the follwowing format:
 Column	Type	Description
 1	Document ID	This is a variation on the document filename
 2	Part number	Some files are divided into multiple parts numbered as 000, 001, 002, ... etc.
@@ -82,7 +88,7 @@ def featurize_dir(dirname):
 def write_csv(featurized_files):
     """Write featurized files to csv
     """
-    with open('coref.feat','w',encoding='utf8',newline='') as dest:
+    with open(TEST_FEAT_DEST,'w',encoding='utf8',newline='') as dest:
         writer = csv.DictWriter(dest, fieldnames=FEATURE_NAMES)
         writer.writeheader()
         for featurized_file in featurized_files:
@@ -146,13 +152,13 @@ def build_coref_chains(featfile):
     filenames = df.doc_id.unique()
     fileDict = dict()
     for filename in filenames:
-        
+
         file_df = df[df['doc_id'] == filename]
         partnums = file_df.part_num.unique()
         partDict = dict()
-        
+
         for partnum in partnums:
-            
+
             chainDict = dict()
             part_df = file_df[file_df['part_num'] == partnum]
             corefs = part_df[part_df['corefs'] != '-']
@@ -160,17 +166,17 @@ def build_coref_chains(featfile):
                 sentNum = coref[2]
                 wordNum = coref[3]
                 refNum = coref[-1]
-                
+
                 chainDict = match_corefs(chainDict,refNum,sentNum,wordNum)
-            
+
             partDict[partnum] = chainDict
-        
+
         fileDict[filename] = partDict
-                
+
         #corefs = file_df.corefs.unique()
         #sents = file_df.sent_num.unique()
     return fileDict
-    
+
 def match_corefs(chainDict,newCorefList,sentNum,wordNum):
     """
     Matches an explicit coreference mention to the appropriate chain for this file and part number.
@@ -182,18 +188,18 @@ def match_corefs(chainDict,newCorefList,sentNum,wordNum):
     Returns:
         chainDict, but with the appropriate mentions added to coreference chain(s)
     """
-    
+
     #One word may be relevant to numerous chains, all split by |
     for newCoref in newCorefList.split('|'):
-        
+
         #Starting a new mention
         if newCoref.startswith('('):
-        
+
             #Single-word mention
             if newCoref.endswith(')'):
                 refNum = newCoref[1:-1]
                 chainDict = add_new_coref(chainDict,refNum,(sentNum,wordNum))
-                
+
             #Multi-word mention
             else:
                 refNum = newCoref[1:]
@@ -202,23 +208,23 @@ def match_corefs(chainDict,newCorefList,sentNum,wordNum):
                     chainDict[refNum].append(wordNum)
                 else:
                     chainDict[refNum] = [wordNum]
-                    
+
         #ending a multi-word mention, which will have the format "##)"
         else:
             refNum = newCoref[:-1]
-            
+
             #get the latest still-open mention, and its number and all of the words in between
             wordBegin = chainDict[refNum].pop()
             span = ''
             for i in range(wordBegin,wordNum+1):
                 span += str(i) + '_'
             span = span.strip('_')
-            
-            
+
+
             chainDict = add_new_coref(chainDict,refNum,(sentNum,span))
-    
+
     return chainDict
-    
+
 def add_new_coref(chainDict,refNum,coref):
     """Add a completed single- or multi-word mention to its coreference chain, taking into account
     the fact that there might be still-open multi-word mentions in this same chain
@@ -244,9 +250,9 @@ def add_new_coref(chainDict,refNum,coref):
             openList.append(chainList.pop())
             if len(chainList) < 1:
                 break
-    
+
     chainList.append(coref)
-    
+
     #Add the popped-out still-open mentions back to the chain in their original order
     while len(openList) > 0:
         chainList.append(openList.pop())
@@ -254,23 +260,23 @@ def add_new_coref(chainDict,refNum,coref):
     return chainDict
 
 if __name__ == "__main__":
-    """
+
     print("Featurizing...")
-    featurized_files = featurize_dir('../conll-2012/train/')
+    featurized_files = featurize_dir(CONLL_TEST)
+
     print("Writing csv...")
     write_csv(featurized_files)
-    """
 
-    
+
     print("Extracting coreference chains...")
     #coref_dicts = build_coref_chains(featurized_files)
-    coref_dicts = build_coref_chains('./appos.FEAT')
-    with open('acro.pickle','wb') as f:
+    coref_dicts = build_coref_chains(TEST_FEAT_DEST)
+    with open(COREF_PICKLE_DEST,'wb') as f:
         pickle.dump(coref_dicts,f,pickle.HIGHEST_PROTOCOL)
     #print(coref_dicts[100].keys())
     #for key in coref_dicts[100].keys():
      #   print(coref_dicts[key])
-    
+
     """
     print("Getting NPs")
     nps = get_nps('../train.feat')
