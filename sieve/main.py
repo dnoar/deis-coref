@@ -117,12 +117,12 @@ def merge_groupings(groupings):
 
 if __name__ == '__main__':
     #Load the starting coreference chains to get the mentions
-    with open('../coref_test.pickle','rb') as f:
+    with open(FEAT_PICKLE,'rb') as f:
         coref_chains = pickle.load(f)
 
     #Read the features and syntax trees
-    df = pd.read_csv(FEATFILE)
-    trees = get_trees(FEATFILE)
+    df = pd.read_csv(FEAT_FILE)
+    trees = get_trees(FEAT_FILE)
 
     #Gender log for pronoun-linking, used in sieve_modules.module7
     #Allows us to look up entity in wikipedia only once
