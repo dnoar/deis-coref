@@ -2,24 +2,34 @@
 Coreference resolution project
 Daniel Noar, Nicholas Miller, Evan MacPhaul
 
+***Summary:***
+
+We ultimately implemented a variation of the rule-based 'sieve' approach.
+
 ***Files:***
 
-- appositions.py: tool for finding apposition in feature file
-- classifiers.py: tools for training and evaluating various CRF classifiers (not implemented)
-- hobbs2.py: tool for applying Hobb's method (not implemented)
-- npfeats.py: tool for finding NP features (not implemented)
-
+The operational scripts are the following:
 
 - preprocess.py: tool for converting the CONLL files for use with the sieve
 - main.py: tool for applying the sieve modules
+
+Component scripts include the following:
+
+- appositions.py: tool for finding apposition in feature file
 - pronfo.py: pronoun information
 - sieve_modules.py: sieve modules
+
+
+Files identified as 'not implemented' are approaches that we tried, but abandoned. We include those files here for completeness:
+- classifiers.py (not implemented): tools for training and evaluating various CRF classifiers 
+- hobbs2.py (not implemented): tool for applying Hobb's method
+- npfeats.py (not implemented): tool for finding NP features
 
 ***Instructions for running:***
 
 Note that since the sieve is a rule-based approach, we only need to work with the test data.
 
-1. In preprocess.py, update the CONLL_TRAIN, CONLL_DEV, and CONLL_TEST constants to point to the directories of the corresponding CONLL files.
+1. In preprocess.py, update the CONLL_TEST constant to correspond to the directories of the corresponding CONLL files. 
 
 2. Run preprocess.py. This will write the coref.feat file (essentially a .csv), and pickle the coreference chain data structure for use with the next steps.
 
